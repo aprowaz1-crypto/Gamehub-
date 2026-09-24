@@ -10,7 +10,14 @@ let package = Package(
         .library(name: "GamehubMockCore", targets: ["GamehubMockCore"]),
     ],
     targets: [
-        .target(name: "GamehubMockCore"),
-        .testTarget(name: "GamehubMockCoreTests", dependencies: ["GamehubMockCore"]),
+        .target(
+            name: "GamehubMockCore",
+            path: "Sources/GamehubMockCore"
+        ),
+        .testTarget(
+            name: "GamehubMockCoreTests",
+            dependencies: ["GamehubMockCore"],
+            path: "Tests/GamehubMockCoreTests"
+        ),
     ]
 )
