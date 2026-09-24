@@ -28,9 +28,7 @@ jobs:
         run: |
           set -o pipefail
           START=$(date +%s)
-          pushd FEX
-          ./build-ios/build.sh
-          popd
+          ./build/fex-ios/build.sh
           END=$(date +%s)
           echo "::notice::FEX iOS build completed in $((END - START))s"
 
@@ -43,6 +41,7 @@ jobs:
           ../configure --without-x --disable-tests --enable-win64
           END=$(date +%s)
           echo "::notice::Wine configure completed in $((END - START))s"
+          cd "$GITHUB_WORKSPACE"
 
       - name: Build Wine ntdll unix
         run: |
