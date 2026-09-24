@@ -7,15 +7,21 @@
 - [x] Phase 0: Updated PLAN.md with memory/entitlement, device tiers, Steam memory-aware strategy, cover art, iOS 17.4+ decisions
 - [x] Phase 0: Added iOS 27 JIT section (universal protocol, Madeira delta, Phase 2 gate, fallback options)
 - [x] Phase 0: Fixed section numbering in PLAN.md
+- [x] Phase 0: First commit/push succeeded (cfe1a23)
+- [x] Phase 0: Triggered CI run 36047390268
+- [x] Phase 0: Merged Madeira with full history (`git merge --allow-unrelated-histories`) → 26aca44
+- [x] Phase 0: Resolved README.md conflict (Madeira README kept at root; PLAN.md/docs used for project-specific docs)
+- [x] Phase 0: Updated PLAN.md with source citations, unverified claims, touchHLE correction, Phase 1 build-Madeira-AS-IS strategy
 
 ## Next
-- [ ] Phase 0: User approves PLAN.md
-- [ ] Phase 0: Create repo structure (.gitmodules, .github/workflows skeleton, launcher Swift package skeleton)
-- [ ] Phase 0: First commit -> push -> CI run -> verify workflow syntax
+- [ ] Phase 1: Update .gitmodules to pin Madeira forks to SHAs
+- [ ] Phase 1: Update build-ipa.yml to build Madeira AS IS
+- [ ] Phase 1: Verify CI builds Madeira app successfully
+- [ ] Phase 1: Trigger CI run and monitor for green build
 
 ## Blockers
-- Waiting for user approval of updated PLAN.md before Phase 1
-- JIT on iOS 27 is risk #1; must verify universal protocol on device before Phase 2
+- CI run 36047390268 status unknown (user said do not wait)
+- Madeira submodules not yet pinned to SHAs
 
 ## Decisions
 - Base on Madeira (GPL-3.0-or-later), fork submodules to Gamehub- org
