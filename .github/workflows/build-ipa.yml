@@ -9,87 +9,109 @@ on:
     types: [ published ]
 
 jobs:
-  build-launcher:
+  build-native:
     runs-on: macos-14
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Xcode
-        uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: "15.4"
+          submodules: recursive
 
-      - name: Build Launcher Swift Package
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Install dependencies
+        run: |
+          brew install cmake ninja
+
+      - name: Build FEX iOS
         run: |
           set -o pipefail
           START=$(date +%s)
-          pushd launcher
-          swift build -c release
+          pushd FEX
+          ./build-ios/build.sh
           popd
           END=$(date +%s)
-          echo "::notice::Launcher build completed in $((END - START))s"
+          echo "::notice::FEX iOS build completed in $((END - START))s"
 
-      - name: Build MockCore Swift Package
+      - name: Configure Wine (macOS)
         run: |
           set -o pipefail
           START=$(date +%s)
-          pushd core/MockCore
-          swift build -c release
-          popd
+          mkdir -p wine/build-macos
+          cd wine/build-macos
+          ../configure --without-x --disable-tests --enable-win64
           END=$(date +%s)
-          echo "::notice::MockCore build completed in $((END - START))s"
+          echo "::notice::Wine configure completed in $((END - START))s"
 
-  verify-entitlements:
-    runs-on: macos-14
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Verify entitlements file exists
-        run: |
-          test -f app/Gamehub/Gamehub.entitlements
-          echo "Entitlements file found:"
-          cat app/Gamehub/Gamehub.entitlements
-
-  build-ipa:
-    needs: [build-launcher, verify-entitlements]
-    runs-on: macos-14
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: "15.4"
-
-      - name: Package IPA skeleton
+      - name: Build Wine ntdll unix
         run: |
           set -o pipefail
           START=$(date +%s)
-          mkdir -p Payload/Gamehub.app
-          cp app/Gamehub/Info.plist Payload/Gamehub.app/
-          cp app/Gamehub/Gamehub.entitlements Payload/Gamehub.app/
-          codesign --force --sign - --entitlements app/Gamehub/Gamehub.entitlements Payload/Gamehub.app || true
+          ./build/ntdll-unix/build.sh
+          END=$(date +%s)
+          echo "::notice::Wine ntdll unix build completed in $((END - START))s"
+
+      - name: Build Wine wineserver
+        run: |
+          set -o pipefail
+          START=$(date +%s)
+          ./build/wineserver/build.sh
+          END=$(date +%s)
+          echo "::notice::Wine wineserver build completed in $((END - START))s"
+
+      - name: Build Wine win32u unix
+        run: |
+          set -o pipefail
+          START=$(date +%s)
+          ./build/win32u-unix/build.sh
+          END=$(date +%s)
+          echo "::notice::Wine win32u unix build completed in $((END - START))s"
+
+      - name: Stage licenses
+        run: |
+          set -o pipefail
+          ./build/stage-licenses.sh
+
+      - name: Build app
+        run: |
+          set -o pipefail
+          START=$(date +%s)
+          xcodebuild -project app/Madeira.xcodeproj \
+            -scheme Madeira \
+            -configuration Debug \
+            -destination 'generic/platform=iOS' \
+            -allowProvisioningUpdates \
+            build
+          END=$(date +%s)
+          echo "::notice::App build completed in $((END - START))s"
+
+      - name: Package IPA
+        run: |
+          set -o pipefail
+          START=$(date +%s)
+          mkdir -p Payload
+          cp -R build/Products/Debug-iphoneos/Madeira.app Payload/
+          codesign --force --sign - --entitlement app/Madeira/Madeira.entitlements Payload/Madeira.app || true
           zip -r Gamehub.ipa Payload
           END=$(date +%s)
           echo "::notice::IPA packaging completed in $((END - START))s"
           ls -lh Gamehub.ipa
 
-      - name: Verify IPA Entitlements
+      - name: Verify IPA structure
         run: |
-          codesign -d --entitlements :- Payload/Gamehub.app || true
+          test -d Payload/Madeira.app
+          test -f Payload/Madeira.app/Info.plist
+          echo "IPA structure verified"
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
           name: Gamehub-ipa
-          path: |
-            Gamehub.ipa
+          path: Gamehub.ipa
 
   upload-release:
-    needs: build-ipa
+    needs: build-native
     runs-on: macos-14
     if: github.event_name == 'release'
     steps:
