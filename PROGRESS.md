@@ -12,16 +12,22 @@
 - [x] Phase 0: Merged Madeira with full history (`git merge --allow-unrelated-histories`) → 26aca44
 - [x] Phase 0: Resolved README.md conflict (Madeira README kept at root; PLAN.md/docs used for project-specific docs)
 - [x] Phase 0: Updated PLAN.md with source citations, unverified claims, touchHLE correction, Phase 1 build-Madeira-AS-IS strategy
+- [x] Phase 0: Removed placeholder app/Gamehub* files conflicting with Madeira's app/ layout
+- [x] Phase 0: Initialized submodules (FEX, wine, research/dxmt) - SHAs verified in willfaust forks
+- [x] Phase 1: Updated .gitmodules (branches: ios-port-2607, madeira-lgpl, ios-port)
+- [x] Phase 1: Updated build-ipa.yml to build Madeira AS IS with native chains + xcodebuild
+- [x] Phase 1: Changed bundle ID to com.gamehub.app and display name to Gamehub
+- [x] Phase 1: Triggered CI run 36053746800
 
 ## Next
-- [ ] Phase 1: Update .gitmodules to pin Madeira forks to SHAs
-- [ ] Phase 1: Update build-ipa.yml to build Madeira AS IS
-- [ ] Phase 1: Verify CI builds Madeira app successfully
-- [ ] Phase 1: Trigger CI run and monitor for green build
+- [ ] Phase 1: Monitor CI run 36053746800 for green build
+- [ ] Phase 1: If green, verify IPA structure and entitlements
+- [ ] Phase 1: Install IPA on device via SideStore and test Madeira's JIT flow
+- [ ] Phase 2: Add JIT self-test if Phase 1 IPA installs successfully
 
 ## Blockers
-- CI run 36047390268 status unknown (user said do not wait)
-- Madeira submodules not yet pinned to SHAs
+- CI run 36053746800 in progress (do not wait)
+- Wine configure/build on macOS runner unverified
 
 ## Decisions
 - Base on Madeira (GPL-3.0-or-later), fork submodules to Gamehub- org
