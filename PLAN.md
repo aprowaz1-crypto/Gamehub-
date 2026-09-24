@@ -40,7 +40,6 @@ compat-db/           JSON per-game presets (resolution, FPS cap, env vars, etc.)
 assets/              Placeholder covers, icons (no copyrighted art)
 tests/               Unit/UI tests for launcher
 LICENSE              GPL-3.0-or-later (from Madeira)
-LICENSE-EXCEPTION.md Madeira Converter Exception (from Madeira)
 THIRD-PARTY-NOTICES.md
 CONTRIBUTING.md
 STEAM_CEF_HANDOFF.md
@@ -92,9 +91,13 @@ Since iOS 26, the old blanket `get-task-allow` + attach/detach JIT no longer wor
 
 SideStore docs state: *"iOS 26 has broken JIT once again, and 26.6 and 27 only work with a few apps."* As of June 2026, the supported apps are UTM, Amethyst, MeloNX, maciOS, DolphiniOS, Geode, Manic EMU, Flycast, MeloCafe, ARMSX2, and DukeX. **Madeira is not on that list.** This is a known-good-signal gap, not a verdict: Madeira's forks may simply need the StikDebug integration update described below.
 
+> Source: SideStore docs https://docs.sidestore.io/docs/advanced/jit (accessed 2026-09-24)
+
 ### 4.2 StikDebug iOS 26/27 universal protocol (reference implementation)
 
 StikDebug provides the debugger-side bridge. The app-side protocol is documented in `StikJIT/INTEGRATION.md` and implemented by reference apps:
+
+> Source: StikDebug/StikJIT INTEGRATION.md https://github.com/StikDebug/StikJIT/blob/main/INTEGRATION.md (accessed 2026-09-24)
 
 **Universal protocol (recommended for new integrations):**
 ```c
@@ -162,7 +165,7 @@ However, Madeira is not on the iOS 26/27 supported-apps list. The following chan
 |---|---|---|
 | UTM | Wait for Debugger (tethered launch through Xcode or StikDebug) | No custom script; debugger stays attached |
 | MeloNX | StikDebug with `universal.js`, "Waiting for JIT" view, JIT indicator | Maps JIT pool on-launch; reports Increased Memory Limit status |
-| touchHLE iOS port | Not applicable (runs old iPhone OS apps, not iOS 26 JIT) | Mentioned in passing only; no universal script to port |
+| touchHLE iOS port | StikDebug bundled universal script | Source: touchHLE README; tested on iOS 27 beta 4 |
 | Madeira (today) | Embedded script via `stikjit://` URL, polls for CS_DEBUGGED | Needs URL scheme + TXM + pre-allocation updates |
 
 ### 4.5 Entitlements and memory — measured numbers
@@ -216,8 +219,8 @@ If, after implementing the universal protocol, URL scheme migration, TXM detecti
 | Wine PE DLLs | `llvm-mingw` (ARM64EC target) | EC = Emulation-Compatible |
 | FEX-Emu | `cmake` + `ninja` + Clang (arm64-apple-ios) | Darwin syscall handler |
 | DXMT | `cmake` + `ninja` + Xcode Metal toolchain | `-sdk iphoneos`, ARM64 CPU family |
-| Launcher / App | Xcode 15+ (`xcodebuild`) | `CODE_SIGNING_ALLOWED=NO` for CI unsigned IPA |
-| CI runner | `macos-14` (Apple Silicon) or `macos-15` | GitHub-hosted, 6h job limit |
+| Launcher / App | Xcode + `xcodebuild` | Read Madeira's build scripts and docs for the exact Xcode + SDK they need (DXMT/Metal). Use what the macOS runner image provides, and print `xcodebuild -version` in CI. |
+| CI runner | macOS runner image (Apple Silicon) | Use what GitHub provides; print `xcodebuild -version` in CI. GitHub-hosted, 6h job limit. |
 | Version control | `git` + `gh` CLI | Already authenticated in environment |
 
 **Installed in CI via `actions/setup-xcode` + Homebrew:**
@@ -246,7 +249,7 @@ submodules-init
                     └── upload-artifact / upload-release-asset
 ```
 
-### Estimated CI Times (macos-14 runner)
+### Estimated CI Times (GitHub-hosted macOS runner)
 
 | Job | Estimated Time | Cache Key | Output |
 |---|---|---|---|
@@ -290,20 +293,18 @@ Each native component has a `build/*/build.sh` that:
 ---
 
 ### Phase 1: CI — Build IPA
-**Goal:** GitHub Actions builds an unsigned `.ipa` from all native chains + Swift app.
+**Goal:** Build Madeira AS IS in our CI (only name/bundle ID changes). Only after that IPA installs and its own JIT flow is tested on the phone do we add Self-test and the launcher.
 
-- [ ] `build-ipa.yml` with matrix/cached jobs for:
-  - `wine-unix-libs`
-  - `wine-pe-dlls`
-  - `fex-ios`
-  - `dxmt-ios`
-  - `build-ipa` (xcodebuild, CODE_SIGNING_ALLOWED=NO)
-- [ ] Final job zips `Payload/Gamehub.app` → `Gamehub.ipa`
+- [ ] Merge Madeira repo with full history (`git merge --allow-unrelated-histories`)
+- [ ] Keep Madeira's `app/` layout unchanged; put our new UI in `launcher/` and integrate in Phase 3
+- [ ] `build-ipa.yml` with jobs for Madeira's native chains (wine unix libs, wine PE DLLs, FEX, DXMT) + final `xcodebuild`
+- [ ] Final job zips `Payload/Gamehub.app` → `Gamehub.ipa` (ad-hoc signed, no provisioning profile)
 - [ ] Upload IPA as artifact
 - [ ] On tag push: upload IPA as Release asset
-- [ ] Add PROGRESS.md tracking
+- [ ] Print timing and cache hit/miss in every job; split jobs approaching 6h
+- [ ] PROGRESS.md tracking
 
-**Done criteria:** A green CI run produces an unsigned `.ipa` artifact. IPA structure verified (`Payload/Gamehub.app` exists, Info.plist present).
+**Done criteria:** A green CI run produces an unsigned `.ipa` artifact. IPA structure verified (`Payload/Gamehub.app` exists, Info.plist present). IPA installs on device via SideStore and Madeira's own JIT flow is tested.
 
 ---
 
@@ -404,8 +405,8 @@ Each native component has a `build/*/build.sh` that:
 **Requires paid Apple Developer Program ($99/yr), add only if Madeira demonstrably needs it:**
 - `com.apple.developer.kernel.extended-virtual-addressing` — expands VA space beyond ~64 GB. Flag clearly if added. Do not require it by default.
 
-**Runtime workaround (no entitlement needed):**
-- StikDebug `process_control_disable_memory_limit` via debugger protocol
+**Runtime workaround (no entitlement needed): unverified**
+- StikDebug `process_control_disable_memory_limit` via debugger protocol — claimed in StikDebug docs, but not yet measured on iOS 27. Marked UNVERIFIED. Measure `os_proc_available_memory()` with and without it and report both numbers.
 
 **Implementation rules:**
 - Embed `com.apple.developer.kernel.increased-memory-limit` in the app's entitlements. Use ad-hoc codesign (`codesign --force --sign - --entitlements entitlements.plist`) or `ldid` in CI before zipping the IPA so SideStore's signer preserves it. Verify in CI with `codesign -d --entitlements :- Payload/Gamehub.app` and on device with `codesign -d --entitlements :- /var/containers/Bundle/Application/.../Gamehub.app`.
@@ -421,7 +422,7 @@ Target ALL iPhones and iPads with >= 4 GB RAM that can run JIT + Metal. Mark old
 
 | Tier | RAM | Example Devices | JIT Cache Limit | Default Resolution Scale | Steam Features | Notes |
 |---|---|---|---|---|---|---|
-| 4 GB | 4 GB | iPhone XR/XS, iPad 8th gen | ~128 MB | 0.75x | Headless SteamCMD only | Needs measured log; full CEF client likely does not fit |
+| 4 GB | 4 GB | iPhone 11/11 Pro/XS, 12/12 Pro/13/mini, SE 3rd gen | ~128 MB | 0.75x | Headless SteamCMD only | Needs measured log; full CEF client likely does not fit |
 | 6 GB | 6 GB | iPhone 14/14 Plus/15, iPad Air 5th gen | ~256 MB | 0.85x | Full Steam client, memory-aware | Author's test device; target primary tier |
 | 8 GB | 8 GB | iPhone 15 Pro/15 Pro Max, iPad Pro 12.9" M2/M4 | ~512 MB | 1.0x | Full Steam client | Most headroom |
 
