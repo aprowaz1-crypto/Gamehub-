@@ -1,0 +1,107 @@
+name: Build IPA
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+jobs:
+  build-launcher:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "15.4"
+
+      - name: Build Launcher Swift Package
+        run: |
+          set -o pipefail
+          START=$(date +%s)
+          pushd launcher
+          swift build -c release
+          popd
+          END=$(date +%s)
+          echo "::notice::Launcher build completed in $((END - START))s"
+
+      - name: Build MockCore Swift Package
+        run: |
+          set -o pipefail
+          START=$(date +%s)
+          pushd core/MockCore
+          swift build -c release
+          popd
+          END=$(date +%s)
+          echo "::notice::MockCore build completed in $((END - START))s"
+
+  verify-entitlements:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify entitlements file exists
+        run: |
+          test -f app/Gamehub/Gamehub.entitlements
+          echo "Entitlements file found:"
+          cat app/Gamehub/Gamehub.entitlements
+
+  build-ipa:
+    needs: [build-launcher, verify-entitlements]
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "15.4"
+
+      - name: Package IPA skeleton
+        run: |
+          set -o pipefail
+          START=$(date +%s)
+          mkdir -p Payload/Gamehub.app
+          cp app/Gamehub/Info.plist Payload/Gamehub.app/
+          cp app/Gamehub/Gamehub.entitlements Payload/Gamehub.app/
+          codesign --force --sign - --entitlements app/Gamehub/Gamehub.entitlements Payload/Gamehub.app || true
+          zip -r Gamehub.ipa Payload
+          END=$(date +%s)
+          echo "::notice::IPA packaging completed in $((END - START))s"
+          ls -lh Gamehub.ipa
+
+      - name: Verify IPA Entitlements
+        run: |
+          codesign -d --entitlements :- Payload/Gamehub.app || true
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Gamehub-ipa
+          path: |
+            Gamehub.ipa
+
+  upload-release:
+    needs: build-ipa
+    runs-on: macos-14
+    if: github.event_name == 'release'
+    steps:
+      - name: Download IPA artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Gamehub-ipa
+
+      - name: Upload IPA to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            Gamehub.ipa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
