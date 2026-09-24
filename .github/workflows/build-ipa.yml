@@ -78,10 +78,12 @@ jobs:
           set -o pipefail
           START=$(date +%s)
           xcodebuild -project app/Madeira.xcodeproj \
-            -scheme Madeira \
+            -target Madeira \
             -configuration Debug \
             -destination 'generic/platform=iOS' \
             -allowProvisioningUpdates \
+            CODE_SIGNING_ALLOWED=YES \
+            CODE_SIGN_IDENTITY="-" \
             build
           END=$(date +%s)
           echo "::notice::App build completed in $((END - START))s"
