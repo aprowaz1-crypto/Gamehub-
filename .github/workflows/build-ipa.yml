@@ -29,25 +29,6 @@ jobs:
         run: |
           set -o pipefail
           START=$(date +%s)
-          pip3 install packaging
-          echo 'Processor       : Apple M1
-processor        : 0
-Features         : fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp sve
-CPU implementer  : 0x41
-CPU part         : 0xd03
-CPU revision     : 4
-BogoMIPS         : 48.00' > /tmp/cpuinfo
-          if [ ! -f /proc/cpuinfo ]; then echo 'Patching FEX CMakeLists.txt for macOS'; python3 -c "
-import re
-with open('FEX/CMakeLists.txt', 'r') as f:
-    content = f.read()
-old = '''      execute_process(COMMAND python3 \"\${PROJECT_SOURCE_DIR}/Scripts/aarch64_fit_native.py\" \"/proc/cpuinfo\" \${CMAKE_CXX_COMPILER_VERSION}\n        OUTPUT_VARIABLE AARCH64_CPU)\n\n      string(STRIP \${AARCH64_CPU} AARCH64_CPU)\n\n      execute_process(COMMAND python3 \"\${PROJECT_SOURCE_DIR}/Scripts/NeedDisabledSVE.py\"\n        RESULT_VARIABLE NEEDS_SVE_DISABLED)\n      if (NEEDS_SVE_DISABLED)\n        message(STATUS \"Platform has bugged SVE. Disabling\")\n        set(AARCH64_CPU \"cortex-a78\")\n      endif()'''
-new = '''      if(EXISTS \"/proc/cpuinfo\")\n        execute_process(COMMAND python3 \"\${PROJECT_SOURCE_DIR}/Scripts/aarch64_fit_native.py\" \"/proc/cpuinfo\" \${CMAKE_CXX_COMPILER_VERSION}\n          OUTPUT_VARIABLE AARCH64_CPU)\n\n        string(STRIP \${AARCH64_CPU} AARCH64_CPU)\n\n        execute_process(COMMAND python3 \"\${PROJECT_SOURCE_DIR}/Scripts/NeedDisabledSVE.py\"\n          RESULT_VARIABLE NEEDS_SVE_DISABLED)\n        if (NEEDS_SVE_DISABLED)\n          message(STATUS \"Platform has bugged SVE. Disabling\")\n          set(AARCH64_CPU \"cortex-a78\")\n        endif()\n      else()\n        message(STATUS \"/proc/cpuinfo not found, defaulting AARCH64_CPU to cortex-a57\")\n        set(AARCH64_CPU \"cortex-a57\")\n      endif()'''
-content = content.replace(old, new)
-with open('FEX/CMakeLists.txt', 'w') as f:
-    f.write(content)
-print('Patched FEX/CMakeLists.txt')
-"; fi
           ./build/fex-ios/build.sh
           END=$(date +%s)
           echo "::notice::FEX iOS build completed in $((END - START))s"
