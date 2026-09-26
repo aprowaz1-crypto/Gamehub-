@@ -39,7 +39,7 @@ jobs:
           START=$(date +%s)
           mkdir -p wine/build-macos
           cd wine/build-macos
-          ../configure --without-x --disable-tests --enable-win64
+          ../configure --without-x --disable-tests --enable-archs=x86_64
           END=$(date +%s)
           echo "::notice::Wine configure completed in $((END - START))s"
           cd "$GITHUB_WORKSPACE"
