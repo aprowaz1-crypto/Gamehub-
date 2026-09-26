@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: |
           brew install cmake ninja flex bison
-          pip3 install packaging
+          python3 -m pip install --break-system-packages packaging
 
       - name: Build FEX iOS
         run: |
